@@ -2,27 +2,28 @@ from Cell import Cell
 import random 
 
 class Board:
-    def __init__(self, size=6, mines=6):
-        self.size = size
-        self.grid = [[Cell() for _ in range(size)] for _ in range(size)]
+    def __init__(self, size_x = 6, size_y = 6, mines=6):
+        self.size_x = size_x
+        self.size_y = size_y
+        self.grid = [[Cell() for _ in range(size_x)] for _ in range(size_y)]
         self.mines = mines
         self.visited_dp = set()    # DP: evita repetir expansión
         self.place_mines()
         self.compute_adjacent_counts()
 
     def valid(self, x, y):
-        return 0 <= x < self.size and 0 <= y < self.size
+        return 0 <= x < self.size_x and 0 <= y < self.size_y
 
     def place_mines(self):
-        positions = random.sample(range(self.size*self.size), self.mines)
-        for pos in positions:
-            x = pos // self.size
-            y = pos % self.size
-            self.grid[x][y].is_mine = True
+        pos_x = random.sample(range(self.size_x), self.mines)
+        pos_y = random.sample(range(self.size_y), self.mines)
+        for x, y in zip(pos_x, pos_y):
+            self.grid[x][y].in_mine = True
+
 
     def compute_adjacent_counts(self):
-        for x in range(self.size):
-            for y in range(self.size):
+        for x in range(self.size_x):
+            for y in range(self.size_y):
                 if self.grid[x][y].is_mine:
                     self.grid[x][y].adjacent_mines = -1
                     continue
