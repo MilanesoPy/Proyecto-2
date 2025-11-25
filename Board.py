@@ -70,7 +70,7 @@ class Board:
                 if not self.valid(nx, ny):
                     continue
                 neighbor = self.grid[nx][ny]
-                if not neighbor.is_revealed and not neighbor.is_mine:
+                if not neighbor.is_revealed and not neighbor.is_mine and not neighbor.is_flagged:
                     neighbor.is_revealed = True
                     if neighbor.adjacent_mines == 0:
                         self.flood_fill(nx, ny)  # expansión recursiva

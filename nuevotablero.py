@@ -1,10 +1,9 @@
 from Cell import Cell
-from Board import Board
-from Board import Board
+from NewBoard import Board
 from Agent import RandomAgent
 class Game:
-    def __init__(self, size = 6, mines = 6):
-        self.board = Board(size, mines)
+    def __init__(self, size_x = 6, size_y = 6, mines=6):
+        self.board = Board(size_x, size_y, mines)
 
     def play(self):
         while True:
@@ -116,4 +115,4 @@ def run_minesweeper_game(size, mines):
 
 
 if __name__ == "__main__":
-    Game(7, 7).play()# 3. Iniciar el juego
+    Game(7, 9, 7).play()# 3. Iniciar el juego

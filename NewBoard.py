@@ -18,7 +18,7 @@ class Board:
         pos_x = random.sample(range(self.size_x), self.mines)
         pos_y = random.sample(range(self.size_y), self.mines)
         for x, y in zip(pos_x, pos_y):
-            self.grid[x][y].in_mine = True
+            self.grid[x][y].is_mine = True
 
 
     def compute_adjacent_counts(self):
@@ -71,17 +71,17 @@ class Board:
                 if not self.valid(nx, ny):
                     continue
                 neighbor = self.grid[nx][ny]
-                if not neighbor.is_revealed and not neighbor.is_mine:
+                if not neighbor.is_revealed and not neighbor.is_mine and not neighbor.is_flagged:
                     neighbor.is_revealed = True
                     if neighbor.adjacent_mines == 0:
                         self.flood_fill(nx, ny)  # expansión recursiva
 
     def print_board(self, show_mines=False):
-        print("  y " + " ".join(str(i) for i in range(self.size)))
-        print("x  " + "--" * self.size)
-        for i in range(self.size):
+        print("  y " + " ".join(str(i) for i in range(self.size_y)))
+        print("x  " + "--" * self.size_x)
+        for i in range(self.size_y):
             row = []
-            for j in range(self.size):
+            for j in range(self.size_x):
                 c = self.grid[i][j]
                 if show_mines and c.is_mine:
                     row.append("*")
