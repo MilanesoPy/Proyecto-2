@@ -33,8 +33,7 @@ class MinesweeperEnv:
                     row.append(-1)
                 else:
                     row.append(c.adjacent_mines)
-            row = tuple(row)
-            state.append(row)
+            state.append(tuple(row))
         return tuple(state)
 
     def step(self, action):
@@ -60,41 +59,36 @@ class MinesweeperEnv:
 
 
 # ============================================================
-#                Q-LEARNING
+#                Q-LEARNING PARA BUSCAMINAS
 # ============================================================
-
-Q = defaultdict(float)
-alpha = 0.1
-gamma = 0.99
-epsilon = 0.1
-
-EPISODES = 2000
-MAX_STEPS = 200
 
 
 def choose_action(state, env):
     if random.random() < epsilon:
-        return (random.randint(0, env.size_x-1),
-                random.randint(0, env.size_y-1))
+        return (random.randint(0, env.size_x - 1),
+                random.randint(0, env.size_y - 1))
 
-    best = None
+    best_a = None
     best_q = float("-inf")
+
     for x in range(env.size_x):
         for y in range(env.size_y):
             q = Q[(state, (x, y))]
             if q > best_q:
-                best = (x, y)
                 best_q = q
-    return best
+                best_a = (x, y)
+
+    return best_a
 
 
 def update_q(state, action, reward, next_state, env):
-    best_next = float("-inf")
+    best_next_q = float("-inf")
+
     for x in range(env.size_x):
         for y in range(env.size_y):
-            best_next = max(best_next, Q[(next_state, (x, y))])
+            best_next_q = max(best_next_q, Q[(next_state, (x, y))])
 
-    Q[(state, action)] += alpha * (reward + gamma * best_next - Q[(state, action)])
+    Q[(state, action)] += alpha * (reward + gamma * best_next_q - Q[(state, action)])
 
 
 def train_q_learning(env):
@@ -107,6 +101,7 @@ def train_q_learning(env):
             action = choose_action(state, env)
             next_state, reward, done, info = env.step(action)
             update_q(state, action, reward, next_state, env)
+
             state = next_state
             steps += 1
 
@@ -117,28 +112,62 @@ def train_q_learning(env):
 
 
 # ============================================================
-#              VER LO QUE APRENDIÓ (TOP ACCIONES)
+#                VER JUGAR AL AGENTE
 # ============================================================
 
-def ver_lo_que_aprendio(env, k=10):
-    state = env.reset()  # estado inicial
-    acciones = []
+def watch_agent(env, Q, max_steps=8):
+    state = env.reset()
+    done = False
+    steps = 0
 
-    for x in range(env.size_x):
-        for y in range(env.size_y):
-            acciones.append(((x, y), Q[(state, (x, y))]))
+    print("Estado inicial:")
+    if hasattr(env.board, "print_board"):
+        env.board.print_board()
+    print()
 
-    acciones.sort(key=lambda x: x[1], reverse=True)
+    while not done and steps < max_steps:
+        best_action = None
+        best_q = float("-inf")
 
-    print(f"Mejores {k} acciones aprendidas desde el estado inicial:")
-    for a in acciones[:k]:
-        print(a)
+        # Buscar acción con mayor Q
+        for x in range(env.size_x):
+            for y in range(env.size_y):
+                q = Q[(state, (x, y))]
+                if q > best_q:
+                    best_q = q
+                    best_action = (x, y)
 
+        print(f"Agente juega: {best_action} (Q={best_q:.3f})")
+
+        # Ejecutar acción
+        next_state, reward, done, info = env.step(best_action)
+
+        # Mostrar tablero actualizado
+        if hasattr(env.board, "print_board"):
+            env.board.print_board()
+        print()
+
+        state = next_state
+        steps += 1
+
+    print("Juego terminado. Recompensa final:", reward)
+    print("\nTablero con minas reveladas:")
+    if hasattr(env.board, "print_board"):
+        env.board.print_board(show_mines=True)
+
+
+Q = defaultdict(float)
+
+alpha = 0.3
+gamma = 0.99
+epsilon = 0.4
+EPISODES = 10000
+MAX_STEPS = 50
 
 # ============================================================
-#                  ENTRENAR Y VER RESULTADOS
+#                   ENTRENAR Y VER JUEGO
 # ============================================================
 
 env = MinesweeperEnv()
 train_q_learning(env)
-ver_lo_que_aprendio(env)
+watch_agent(env, Q)
