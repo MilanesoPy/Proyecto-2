@@ -43,7 +43,7 @@ class Board:
         cell = self.grid[x][y]
 
         if cell.is_flagged:
-            print("La celda está marcada.")
+            #print("La celda está marcada.")
             return False
 
         if cell.is_revealed:

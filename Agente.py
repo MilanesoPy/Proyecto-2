@@ -4,7 +4,7 @@ import random
 from collections import defaultdict
 
 # ============================================================
-#               ENTORNO BUSCAMINAS
+#               ENTORNO BUSCAMINAS CON BANDERAS
 # ============================================================
 
 class MinesweeperEnv:
@@ -12,6 +12,18 @@ class MinesweeperEnv:
         self.size_x = size_x
         self.size_y = size_y
         self.mines = mines
+
+        # Rewards configurables
+        self.reward_click_repetido = -20
+        self.reward_mina = -10
+        self.reward_reveal_seguro = 20
+        self.reward_reveal_cero = 10
+        self.reward_ganar = 100
+
+        self.reward_flag_correcta = 30
+        self.reward_flag_incorrecta = -10
+        self.reward_flag_repetida = -10
+
         self.reset()
 
     def reset(self):
@@ -33,72 +45,118 @@ class MinesweeperEnv:
                     row.append(-1)
                 else:
                     row.append(c.adjacent_mines)
-            state.append(tuple(row))
+            row = tuple(row)
+            state.append(row)
         return tuple(state)
 
     def step(self, action):
-        x, y = action
-        reward = 0
+        tipo, x, y = action
 
-        if self.board.grid[x][y].is_revealed:
-            return self.get_state(), -1, False, {}
+        # ======================
+        #      ACCIÓN FLAG
+        # ======================
+        if tipo == "flag":
+            c = self.board.grid[x][y]
 
-        ok = self.board.reveal_cell(x, y)
+            if c.is_flagged:
+                return self.get_state(), self.reward_flag_repetida, False, {}
 
-        if not ok:
-            return self.get_state(), -50, True, {}
+            c.is_flagged = True
 
-        c = self.board.grid[x][y]
-        reward = 3 if c.adjacent_mines == 0 else 1
+            if c.is_mine:
+                reward = self.reward_flag_correcta
+            else:
+                reward = self.reward_flag_incorrecta
 
-        done = self.game.check_win()
-        if done:
-            reward = 100
+            done = self.game.check_win()
+            if done:
+                print("gano?")
+                reward += self.reward_ganar
 
-        return self.get_state(), reward, done, {}
+            return self.get_state(), reward, done, {}
+
+        # ======================
+        #    ACCIÓN REVEAL
+        # ======================
+        if tipo == "reveal":
+
+            if self.board.grid[x][y].is_revealed:
+                return self.get_state(), self.reward_click_repetido, False, {}
+
+            ok = self.board.reveal_cell(x, y)
+
+            if not ok:
+                return self.get_state(), self.reward_mina, True, {}
+
+            c = self.board.grid[x][y]
+            reward = self.reward_reveal_cero if c.adjacent_mines == 0 else self.reward_reveal_seguro
+
+            done = self.game.check_win()
+            if done:
+                reward += self.reward_ganar
+
+            return self.get_state(), reward, done, {}
+
+        raise ValueError("Acción desconocida:", action)
 
 
 # ============================================================
 #                Q-LEARNING PARA BUSCAMINAS
 # ============================================================
 
+def all_actions(env):
+    acciones = []
+    for x in range(env.size_x):
+        for y in range(env.size_y):
+            acciones.append(("reveal", x, y))
+            acciones.append(("flag", x, y))
+    return acciones
 
-def choose_action(state, env):
+
+def choose_action(state, env, epsilon):
+    acciones = all_actions(env)
+
     if random.random() < epsilon:
-        return (random.randint(0, env.size_x - 1),
-                random.randint(0, env.size_y - 1))
+        return random.choice(acciones)
 
     best_a = None
     best_q = float("-inf")
 
-    for x in range(env.size_x):
-        for y in range(env.size_y):
-            q = Q[(state, (x, y))]
-            if q > best_q:
-                best_q = q
-                best_a = (x, y)
+    for a in acciones:
+        q = Q[(state, a)]
+        if q > best_q:
+            best_q = q
+            best_a = a
 
     return best_a
 
 
 def update_q(state, action, reward, next_state, env):
-    best_next_q = float("-inf")
+    best_next_q = max(Q[(next_state, a)] for a in all_actions(env))
 
-    for x in range(env.size_x):
-        for y in range(env.size_y):
-            best_next_q = max(best_next_q, Q[(next_state, (x, y))])
+    Q[(state, action)] += alpha * (
+        reward + gamma * best_next_q - Q[(state, action)]
+    )
 
-    Q[(state, action)] += alpha * (reward + gamma * best_next_q - Q[(state, action)])
 
+# ============================================================
+#     ENTRENAMIENTO CON EPSILON DECAY EXPONENCIAL
+# ============================================================
 
 def train_q_learning(env):
+    global epsilon
+
     for episode in range(EPISODES):
+
+        # ---- EPSILON DECAY EXPONENCIAL ----
+        epsilon = min_epsilon + (max_epsilon - min_epsilon) * np.exp(-epsilon_decay_rate * episode)
+
         state = env.reset()
         done = False
         steps = 0
 
         while not done and steps < MAX_STEPS:
-            action = choose_action(state, env)
+            action = choose_action(state, env, epsilon)
             next_state, reward, done, info = env.step(action)
             update_q(state, action, reward, next_state, env)
 
@@ -106,7 +164,7 @@ def train_q_learning(env):
             steps += 1
 
         if (episode + 1) % 200 == 0:
-            print(f"Episodio {episode+1}/{EPISODES} completado")
+            print(f"Episodio {episode+1}/{EPISODES}   epsilon={epsilon:.4f}")
 
     print("Entrenamiento finalizado.")
 
@@ -115,36 +173,29 @@ def train_q_learning(env):
 #                VER JUGAR AL AGENTE
 # ============================================================
 
-def watch_agent(env, Q, max_steps=8):
+def watch_agent(env, Q, max_steps=15):
     state = env.reset()
     done = False
     steps = 0
 
     print("Estado inicial:")
-    if hasattr(env.board, "print_board"):
-        env.board.print_board()
+    env.board.print_board()
     print()
 
     while not done and steps < max_steps:
         best_action = None
         best_q = float("-inf")
 
-        # Buscar acción con mayor Q
-        for x in range(env.size_x):
-            for y in range(env.size_y):
-                q = Q[(state, (x, y))]
-                if q > best_q:
-                    best_q = q
-                    best_action = (x, y)
+        for a in all_actions(env):
+            q = Q[(state, a)]
+            if q > best_q:
+                best_q = q
+                best_action = a
 
-        print(f"Agente juega: {best_action} (Q={best_q:.3f})")
+        print(f"Agente juega: {best_action}  (Q={best_q:.3f})")
 
-        # Ejecutar acción
         next_state, reward, done, info = env.step(best_action)
-
-        # Mostrar tablero actualizado
-        if hasattr(env.board, "print_board"):
-            env.board.print_board()
+        env.board.print_board()
         print()
 
         state = next_state
@@ -152,22 +203,27 @@ def watch_agent(env, Q, max_steps=8):
 
     print("Juego terminado. Recompensa final:", reward)
     print("\nTablero con minas reveladas:")
-    if hasattr(env.board, "print_board"):
-        env.board.print_board(show_mines=True)
+    env.board.print_board(show_mines=True)
 
-
-Q = defaultdict(float)
-
-alpha = 0.3
-gamma = 0.99
-epsilon = 0.4
-EPISODES = 10000
-MAX_STEPS = 50
 
 # ============================================================
 #                   ENTRENAR Y VER JUEGO
 # ============================================================
 
-env = MinesweeperEnv()
+Q = defaultdict(float)
+
+alpha = 0.1
+gamma = 0.99
+
+# ---- parámetros de epsilon decay ----
+max_epsilon = 1.0
+min_epsilon = 0.01
+epsilon_decay_rate = 0.00001
+epsilon = max_epsilon
+
+EPISODES = 10000
+MAX_STEPS = 50
+
+env = MinesweeperEnv(size_x=6, size_y=6, mines=3)
 train_q_learning(env)
 watch_agent(env, Q)
