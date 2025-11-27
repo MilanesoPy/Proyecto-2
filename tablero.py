@@ -1,7 +1,7 @@
 from Cell import Cell
 from Board import Board
 from Board import Board
-from Agent import RandomAgent
+from RandomAgent import RandomAgent 
 class Game:
     def __init__(self, size = 6, mines = 6):
         self.board = Board(size, mines)

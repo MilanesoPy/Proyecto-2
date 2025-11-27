@@ -1,7 +1,7 @@
 import numpy as np 
 from nuevotablero import *
 import random
-from collections import defaultdict
+from collections import defaultdict 
 
 # ============================================================
 #               ENTORNO BUSCAMINAS CON BANDERAS
