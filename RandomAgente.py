@@ -41,12 +41,16 @@ class RandomAgent:
             if not sigue:
                 # Determinar si ganó o perdió
                 if self.check_win():
-                    print("¡El agente ganó!")
-                    self.board.print_board(show_mines=True)
+                    if show:
+                        print(f"{jugada} en {x}, {y}")
+                        print("¡El agente ganó!")
+                        self.board.print_board(show_mines=True)
                     return True 
                 else:
-                    print("El agente perdió.")
-                    self.board.print_board(show_mines=True)
+                    if show:
+                        print(f"{jugada} en {x}, {y}")
+                        print("El agente perdió.")
+                        self.board.print_board(show_mines=True)
                     return False
 
     def check_win(self):
@@ -58,5 +62,22 @@ class RandomAgent:
 
 
 if __name__ == "__main__":
-    agente = RandomAgent(Board(4, 4, 3), 0.2)
-    agente.jugar(show=True)
+
+    #agente = RandomAgent(Board(3, 3, 3), 0.2)
+    #agente.jugar(show=True)
+    #gana = False
+    total = 10000
+    wins = 0
+
+    for i in range(total):
+        game = Board(6, 6, 4)
+        agent = RandomAgent(game, 0.35)
+
+        result = agent.jugar(show=False)  # True si ganó, False si perdió
+        if result:
+            wins += 1
+
+    print(f"Ganó {wins} de {total} partidas.")
+    print(f"Winrate = {wins / total * 100:.2f}%")
+
+

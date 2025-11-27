@@ -7,17 +7,17 @@ class Board:
         self.size_y = size_y
         self.grid = [[Cell() for _ in range(size_y)] for _ in range(size_x)]
         self.mines = mines
-        self.visited_dp = set()    # DP: evita repetir expansión
-        self.place_mines()
-        self.compute_adjacent_counts()
+        self.visited_dp = set()    # esto es para evitar repetir expansión
+        self.place_mines()          # pone las minas altiro
+        self.compute_adjacent_counts()  # 
 
     def valid(self, x, y):
         return 0 <= x < self.size_x and 0 <= y < self.size_y
 
     def place_mines(self):
-        pos_x = random.sample(range(self.size_x), self.mines)
-        pos_y = random.sample(range(self.size_y), self.mines)
-        for x, y in zip(pos_x, pos_y):
+        all_positions = [(x, y) for x in range(self.size_x) for y in range(self.size_y)]
+        mine_positions = random.sample(all_positions, self.mines)
+        for x, y in mine_positions:
             self.grid[x][y].is_mine = True
 
 

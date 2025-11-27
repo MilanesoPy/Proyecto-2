@@ -1,4 +1,4 @@
-import numpy as np
+import numpy as np 
 from nuevotablero import *
 import random
 from collections import defaultdict
@@ -8,10 +8,28 @@ from collections import defaultdict
 # ============================================================
 
 class MinesweeperEnv:
+
+    #  hiperparametros de entrenamiento
+    alpha = 0.7
+    gamma = 0.75
+
+    max_epsilon = 1.0
+    min_epsilon = 0.1
+    epsilon_decay_rate = 0.001
+    epsilon = max_epsilon 
+
+    EPISODES = 20000
+    MAX_STEPS = 20
+
     def __init__(self, size_x=6, size_y=6, mines=6):
         self.size_x = size_x
         self.size_y = size_y
         self.mines = mines
+
+        self.game = Game(self.size_x, self.size_y, self.mines)
+        self.board = self.game.board
+
+        self.Q_table = defaultdict(float)
 
         # Rewards configurables
         self.reward_click_repetido = -20
@@ -45,16 +63,13 @@ class MinesweeperEnv:
                     row.append(-1)
                 else:
                     row.append(c.adjacent_mines)
-            row = tuple(row)
-            state.append(row)
+            state.append(tuple(row))
         return tuple(state)
 
     def step(self, action):
         tipo, x, y = action
 
-        # ======================
-        #      ACCIÓN FLAG
-        # ======================
+        # Acción bandera
         if tipo == "flag":
             c = self.board.grid[x][y]
 
@@ -63,21 +78,15 @@ class MinesweeperEnv:
 
             c.is_flagged = True
 
-            if c.is_mine:
-                reward = self.reward_flag_correcta
-            else:
-                reward = self.reward_flag_incorrecta
+            reward = self.reward_flag_correcta if c.is_mine else self.reward_flag_incorrecta
 
             done = self.game.check_win()
             if done:
-                print("gano?")
                 reward += self.reward_ganar
 
             return self.get_state(), reward, done, {}
 
-        # ======================
-        #    ACCIÓN REVEAL
-        # ======================
+        # Acción revelar
         if tipo == "reveal":
 
             if self.board.grid[x][y].is_revealed:
@@ -100,10 +109,6 @@ class MinesweeperEnv:
         raise ValueError("Acción desconocida:", action)
 
 
-# ============================================================
-#                Q-LEARNING PARA BUSCAMINAS
-# ============================================================
-
 def all_actions(env):
     acciones = []
     for x in range(env.size_x):
@@ -113,7 +118,7 @@ def all_actions(env):
     return acciones
 
 
-def choose_action(state, env, epsilon):
+def choose_action(state, env, epsilon, Q):
     acciones = all_actions(env)
 
     if random.random() < epsilon:
@@ -131,47 +136,40 @@ def choose_action(state, env, epsilon):
     return best_a
 
 
-def update_q(state, action, reward, next_state, env):
+def update_q(state, action, reward, next_state, env, Q):
     best_next_q = max(Q[(next_state, a)] for a in all_actions(env))
 
-    Q[(state, action)] += alpha * (
-        reward + gamma * best_next_q - Q[(state, action)]
+    Q[(state, action)] += env.alpha * (
+        reward + env.gamma * best_next_q - Q[(state, action)]
     )
 
 
-# ============================================================
-#     ENTRENAMIENTO CON EPSILON DECAY EXPONENCIAL
-# ============================================================
+def train_q_learning(env, Q, print_each=1000):
 
-def train_q_learning(env):
-    global epsilon
+    for episode in range(env.EPISODES):
 
-    for episode in range(EPISODES):
-
-        # ---- EPSILON DECAY EXPONENCIAL ----
-        epsilon = min_epsilon + (max_epsilon - min_epsilon) * np.exp(-epsilon_decay_rate * episode)
+        # Epsilon decay
+        env.epsilon = env.min_epsilon + (env.max_epsilon - env.min_epsilon) * np.exp(
+            -env.epsilon_decay_rate * episode
+        )
 
         state = env.reset()
         done = False
         steps = 0
 
-        while not done and steps < MAX_STEPS:
-            action = choose_action(state, env, epsilon)
+        while not done and steps < env.MAX_STEPS:
+            action = choose_action(state, env, env.epsilon, Q)
             next_state, reward, done, info = env.step(action)
-            update_q(state, action, reward, next_state, env)
+            update_q(state, action, reward, next_state, env, Q)
 
             state = next_state
             steps += 1
 
-        if (episode + 1) % 200 == 0:
-            print(f"Episodio {episode+1}/{EPISODES}   epsilon={epsilon:.4f}")
+        if (episode + 1) % print_each == 0:
+            print(f"Episodio {episode+1}/{env.EPISODES}   epsilon={env.epsilon:.4f}")
 
     print("Entrenamiento finalizado.")
 
-
-# ============================================================
-#                VER JUGAR AL AGENTE
-# ============================================================
 
 def watch_agent(env, Q, max_steps=15):
     state = env.reset()
@@ -205,6 +203,7 @@ def watch_agent(env, Q, max_steps=15):
     print("\nTablero con minas reveladas:")
     env.board.print_board(show_mines=True)
 
+
 def test_agent(env, Q, n=100, max_steps=8):
     wins = 0
 
@@ -214,7 +213,6 @@ def test_agent(env, Q, n=100, max_steps=8):
         steps = 0
 
         while not done and steps < max_steps:
-            # Selección greedy (misma que en watch_agent)
             best_action = None
             best_q = float("-inf")
 
@@ -228,7 +226,6 @@ def test_agent(env, Q, n=100, max_steps=8):
             state = next_state
             steps += 1
 
-        # Si la recompensa incluye recompensa por ganar
         if env.game.check_win():
             wins += 1
 
@@ -236,26 +233,22 @@ def test_agent(env, Q, n=100, max_steps=8):
     print(f"Victorias: {wins}/{n}  ({win_rate:.2f}%)")
     return win_rate
 
-# ============================================================
-#                   ENTRENAR Y VER JUEGO
-# ============================================================
 
-Q = defaultdict(float)
 
-alpha = 0.7
-gamma = 1
+if __name__ == "__main__":
 
-# ---- parámetros de epsilon decay ----
-max_epsilon = 1.0
-min_epsilon = 0.05
-epsilon_decay_rate = 0.001
-epsilon = max_epsilon
+    win_rates = []
 
-EPISODES = 20000
-MAX_STEPS = 10
+    for _ in range(10):
+        env = MinesweeperEnv(size_x=5, size_y=5, mines=3)
+        train_q_learning(env, env.Q_table, print_each=25000)
+        win_rates.append(test_agent(env, env.Q_table, n=10000, max_steps=20))
 
-env = MinesweeperEnv(size_x=3, size_y=3, mines=1)
-train_q_learning(env)
-watch_agent(env, Q, max_steps=8)
-test_agent(env, Q, n=4000, max_steps=25)
+    print(f"Media de winrate: {np.mean(win_rates)}")
+    print(f"Desviación estándar: {np.std(win_rates)}")
 
+    print(
+        f"Parámetros: alpha={env.alpha}, gamma={env.gamma}, "
+        f"eps=[{env.max_epsilon}, {env.min_epsilon}, decay={env.epsilon_decay_rate}]"
+    )
+    

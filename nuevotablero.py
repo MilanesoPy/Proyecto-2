@@ -23,6 +23,7 @@ class Game:
                 print("\nUBICACIÓN DE TODAS LAS BOMBAS:")
                 self.board.print_board(show_mines=True)
                 print("\n--------------------------------------\n")
+                continue
                 
                 
 
@@ -55,16 +56,12 @@ class Game:
                 break
 
     def check_win(self):
-        count = 0
         for row in self.board.grid:
             for cell in row:
                 if not cell.is_mine and not cell.is_revealed:
                     return False
-                if cell.is_mine and cell.is_flagged:
-                    count += 1
-                    if count ==  self.board.mines:
-                        return True
-        return False
+        return True
+
 
 
 
