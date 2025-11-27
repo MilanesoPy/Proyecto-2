@@ -15,14 +15,14 @@ class MinesweeperEnv:
 
         # Rewards configurables
         self.reward_click_repetido = -20
-        self.reward_mina = -10
-        self.reward_reveal_seguro = 20
+        self.reward_mina = -50
+        self.reward_reveal_seguro = 40
         self.reward_reveal_cero = 10
-        self.reward_ganar = 100
+        self.reward_ganar = 70
 
-        self.reward_flag_correcta = 30
-        self.reward_flag_incorrecta = -10
-        self.reward_flag_repetida = -10
+        self.reward_flag_correcta = 40
+        self.reward_flag_incorrecta = -20
+        self.reward_flag_repetida = -15
 
         self.reset()
 
@@ -205,6 +205,36 @@ def watch_agent(env, Q, max_steps=15):
     print("\nTablero con minas reveladas:")
     env.board.print_board(show_mines=True)
 
+def test_agent(env, Q, n=100, max_steps=8):
+    wins = 0
+
+    for _ in range(n):
+        state = env.reset()
+        done = False
+        steps = 0
+
+        while not done and steps < max_steps:
+            # Selección greedy (misma que en watch_agent)
+            best_action = None
+            best_q = float("-inf")
+
+            for a in all_actions(env):
+                q = Q[(state, a)]
+                if q > best_q:
+                    best_q = q
+                    best_action = a
+
+            next_state, reward, done, info = env.step(best_action)
+            state = next_state
+            steps += 1
+
+        # Si la recompensa incluye recompensa por ganar
+        if env.game.check_win():
+            wins += 1
+
+    win_rate = wins / n * 100
+    print(f"Victorias: {wins}/{n}  ({win_rate:.2f}%)")
+    return win_rate
 
 # ============================================================
 #                   ENTRENAR Y VER JUEGO
@@ -212,18 +242,20 @@ def watch_agent(env, Q, max_steps=15):
 
 Q = defaultdict(float)
 
-alpha = 0.1
-gamma = 0.99
+alpha = 0.7
+gamma = 1
 
 # ---- parámetros de epsilon decay ----
 max_epsilon = 1.0
-min_epsilon = 0.01
-epsilon_decay_rate = 0.00001
+min_epsilon = 0.05
+epsilon_decay_rate = 0.001
 epsilon = max_epsilon
 
-EPISODES = 10000
-MAX_STEPS = 50
+EPISODES = 20000
+MAX_STEPS = 10
 
-env = MinesweeperEnv(size_x=6, size_y=6, mines=3)
+env = MinesweeperEnv(size_x=3, size_y=3, mines=1)
 train_q_learning(env)
-watch_agent(env, Q)
+watch_agent(env, Q, max_steps=8)
+test_agent(env, Q, n=4000, max_steps=25)
+

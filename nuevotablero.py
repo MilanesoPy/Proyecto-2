@@ -23,6 +23,8 @@ class Game:
                 print("\nUBICACIÓN DE TODAS LAS BOMBAS:")
                 self.board.print_board(show_mines=True)
                 print("\n--------------------------------------\n")
+                
+                
 
             if cmd[0] == "s":
                 print("Juego terminado.")
@@ -67,4 +69,17 @@ class Game:
 
 
 if __name__ == "__main__":
-    Game(11, 11, 10).play()# 3. Iniciar el juego
+    jugar = True
+    while jugar:
+        Ancho = int(input("Ancho del tablero: "))
+        Alto = int(input("Alto del tablero: "))
+        mines = int(input("Cantidad de bombas: "))
+
+        Game(Ancho, Alto, mines).play()
+        respuesta = str(input("Volver a jugar? y/n "))
+
+        if respuesta == "y":
+            jugar = True
+        else:
+            jugar = False
+
