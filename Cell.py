@@ -5,9 +5,9 @@ class Cell:
         self.is_flagged = False
         self.adjacent_mines = 0
 
-    def __str__(self):
+    def __str__(self) -> str:
         if not self.is_revealed:
-            return "F" if self.is_flagged else "□"
+            return "P" if self.is_flagged else "□"
         if self.is_mine:
             return "*"
         return str(self.adjacent_mines) if self.adjacent_mines > 0 else " "
